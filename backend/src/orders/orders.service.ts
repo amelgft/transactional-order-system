@@ -3,16 +3,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Product } from '../products/entities/products.entities';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @InjectRepository(Order)
+
+    private readonly orderRepository: Repository<Order>,
+  
+  ) {}
 
   create(data: CreateOrderDto): Promise<Order> {
     // 1. Require exactly one client option.
@@ -150,4 +157,25 @@ export class OrdersService {
       return savedOrder;
     });
   }
+
+
+  async findOne(id: number): Promise<Order> {
+  const order = await this.orderRepository.findOne({
+    where: { id },
+    relations: {
+      client: true,
+      items: {
+        product: true,
+      },
+    },
+  });
+
+  if (!order) {
+    throw new NotFoundException(`Order ${id} was not found`);
+  }
+
+  return order;
+}
+
+
 }
