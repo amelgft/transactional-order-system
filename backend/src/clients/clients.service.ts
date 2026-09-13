@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Client } from './entities/client.entity';
@@ -12,14 +11,6 @@ export class ClientsService {
     private readonly clientRepository: Repository<Client>,
   ){}
 
-
-  create(data: CreateClientDto): Promise<Client> {
-    const client = this.clientRepository.create({
-      name: data.name
-    });
-
-    return this.clientRepository.save(client);
-  }
 
   findAll(): Promise<Client[]> {
     return this.clientRepository.find();
@@ -44,8 +35,8 @@ export class ClientsService {
   }
 
   async remove(id: number): Promise<void> {
-  const client = await this.findOne(id);
+    const client = await this.findOne(id);
 
-  await this.clientRepository.remove(client);
+    await this.clientRepository.remove(client);
   }
 }
