@@ -10,6 +10,9 @@ import { OrderItem } from './entities/order-item.entity';
 import { Client } from '../clients/entities/client.entity';
 import { Product } from '../products/entities/products.entities';
 import { InjectRepository } from '@nestjs/typeorm';
+import Big from 'big.js';
+
+
 
 @Injectable()
 export class OrdersService {
@@ -21,7 +24,20 @@ export class OrdersService {
   
   ) {}
 
-  create(data: CreateOrderDto): Promise<Order> {
+  private calculateTotal(items: OrderItem[]): string {
+  let total = new Big(0);
+
+  for (const item of items) {
+    const price = new Big(item.unitPriceAtPurchase)
+      .times(item.orderedQuantity);
+
+    total = total.plus(price);
+  }
+
+  return total.toFixed(2);
+}
+
+  create(data: CreateOrderDto): Promise<Order & { total: string }> {
     // 1. Require exactly one client option.
     if (data.clientId === null || data.newClient === null) {
       throw new BadRequestException(
@@ -137,6 +153,7 @@ export class OrdersService {
       });
 
       const savedOrder = await orderRepository.save(order);
+      const savedItems: OrderItem[] = [];
 
       // 6. Save purchase details and decrease stock.
       for (const item of checkedItems) {
@@ -147,19 +164,23 @@ export class OrdersService {
           unitPriceAtPurchase: item.product.price,
         });
 
-        await orderItemRepository.save(orderItem);
+        const savedItem = await orderItemRepository.save(orderItem);
+        savedItems.push(savedItem);
 
         item.product.availableStock -= item.orderedQuantity;
         await productRepository.save(item.product);
       }
 
       // Successful completion allows the transaction to commit.
-      return savedOrder;
+      return {
+        ...savedOrder,
+        total: this.calculateTotal(savedItems),
+        };
     });
   }
 
 
-  async findOne(id: number): Promise<Order> {
+  async findOne(id: number): Promise<Order & { total: string }> {
   const order = await this.orderRepository.findOne({
     where: { id },
     relations: {
@@ -174,8 +195,29 @@ export class OrdersService {
     throw new NotFoundException(`Order ${id} was not found`);
   }
 
-  return order;
+  return {
+  ...order,
+  total: this.calculateTotal(order.items),
+};
 }
 
+
+async findAll(): Promise<(Order & { total: string })[]> {
+  const orders = await this.orderRepository.find({
+    relations: {
+      client: true,
+      items: true,
+    },
+    order: {
+      createdAt: 'DESC',
+      id: 'DESC',
+    },
+  });
+
+  return orders.map((order) => ({
+    ...order,
+    total: this.calculateTotal(order.items),
+  }));
+}
 
 }
