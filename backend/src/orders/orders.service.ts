@@ -38,7 +38,7 @@ export class OrdersService {
 }
 
   create(data: CreateOrderDto): Promise<Order & { total: string }> {
-    // 1. Require exactly one client option.
+
     if (data.clientId === null || data.newClient === null) {
       throw new BadRequestException(
         'clientId and newClient cannot be null',
@@ -54,7 +54,6 @@ export class OrdersService {
       );
     }
 
-    // 2. Require items and reject repeated products.
     if (!Array.isArray(data.items) || data.items.length === 0) {
       throw new BadRequestException(
         'An order must contain at least one item',
@@ -92,7 +91,6 @@ export class OrdersService {
       const orderRepository = manager.getRepository(Order);
       const orderItemRepository = manager.getRepository(OrderItem);
 
-      // 3. Find the existing client or save the new client.
       let client: Client;
 
       if (data.clientId !== undefined) {
@@ -113,7 +111,6 @@ export class OrdersService {
         client = await clientRepository.save(newClient);
       }
 
-      // 4. Lock products in a consistent order and check stock.
       const sortedItems = [...data.items].sort(
         (a, b) => a.productId - b.productId,
       );
@@ -147,7 +144,6 @@ export class OrdersService {
         });
       }
 
-      // 5. Create ONE order after all products pass the checks.
       const order = orderRepository.create({
         client: client,
       });
@@ -171,7 +167,6 @@ export class OrdersService {
         await productRepository.save(item.product);
       }
 
-      // Successful completion allows the transaction to commit.
       return {
         ...savedOrder,
         total: this.calculateTotal(savedItems),
