@@ -85,3 +85,16 @@ Implemented:
 - Database transactions
 - Concurrency protection
 - Database migrations
+
+## Docker
+
+Docker Compose runs the NestJS API and PostgreSQL database together.
+
+```bash
+docker compose up -d --build
+docker compose exec backend npx typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts
+docker compose down
+```
+
+The API is available at `http://localhost:3000`
+
